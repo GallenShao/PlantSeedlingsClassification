@@ -2,3 +2,7 @@ train/
 test/
 train.zip
 test.zip
+*.png
+__pycache__/
+._data.py
+._nn.py
