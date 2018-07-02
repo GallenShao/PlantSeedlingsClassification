@@ -11,7 +11,7 @@ epoch_size = 1000
 batch_size = 60
 
 if __name__ == '__main__':
-    Xtrain, Ytrain, XCV, YCV, Xtest, Ytest, categories = data.load_data(split=(0.8, 0.2, 0), shuffle=True, need_filter=True, fast_load=True)
+    Xtrain, Ytrain, XCV, YCV, Xtest, Ytest, categories = data.load_data(split=(0.8, 0.2, 0), shuffle=True, need_filter=False, fast_load=True)
     
     if len(sys.argv) < 2:
         network = alexnet.build_net()
