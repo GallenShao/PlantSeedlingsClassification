@@ -28,6 +28,8 @@ if __name__ == '__main__':
     config = tf.ConfigProto()
     config.gpu_options.allow_growth = True
     sess = tf.Session()
+    if len(sys.argv) > 1:
+        tf.summary.FileWriter('%s_logs/' % sys.argv[1], sess.graph)
     init = tf.global_variables_initializer()
     sess.run(init)
     

@@ -5,39 +5,42 @@ learning_rate = 1e-3
 
 
 def weight_variable(shape):
-    initial = tf.truncated_normal(shape, stddev=0.1)
+    initial = tf.truncated_normal(shape, stddev=0.1, name='w')
 #    initial = tf.random_normal(shape)
     return tf.Variable(initial)
 
 
 def bias_variable(shape, constant=0.2):
-    initial = tf.constant(constant, shape=shape)
+    initial = tf.constant(constant, shape=shape, name='b')
 #    initial = tf.random_normal(shape)
     return tf.Variable(initial)
 
 
 def batch_normalization(input, bias_shape):
-    mean, var = tf.nn.moments(input, list(range(len(input.shape)-1)), keep_dims=True)
-    shift = tf.Variable(tf.zeros(bias_shape))
-    cale = tf.Variable(tf.ones(bias_shape))
-    epsilon = 1e-3
-    output = tf.nn.batch_normalization(input, mean, var, shift, scale, epsilon)
-    return output
+    with tf.variable_scope('BN'):
+        mean, var = tf.nn.moments(input, list(range(len(input.shape)-1)), keep_dims=True)
+        shift = tf.Variable(tf.zeros(bias_shape), name='shift')
+        scale = tf.Variable(tf.ones(bias_shape), name='scale')
+        epsilon = 1e-3
+        output = tf.nn.batch_normalization(input, mean, var, shift, scale, epsilon)
+        return output
 
 
 def conv2d(input, weight_shape, stride=1, padding='SAME', bias_init_contant=0.2, activate=tf.nn.relu):
-    output = tf.nn.conv2d(input, weight_variable(weight_shape), strides=[1, stride, stride, 1], padding=padding)
-    output = tf.nn.bias_add(output, bias_variable(weight_shape[-1:], bias_init_contant))
-    output = batch_normalization(output, weight_shape[-1:])
-    output = activate(output)
-    return output
+    with tf.variable_scope('conv_%d_%d' % (weight_shape[0], weight_shape[1])):
+        output = tf.nn.conv2d(input, weight_variable(weight_shape), strides=[1, stride, stride, 1], padding=padding)
+        output = tf.nn.bias_add(output, bias_variable(weight_shape[-1:], bias_init_contant))
+        output = batch_normalization(output, weight_shape[-1:])
+        output = activate(output)
+        return output
 
 
 def fc(input, input_size, output_size, bias_init_contant=0.2):
-    output = tf.reshape(input, [-1, input_size])
-    output = tf.nn.bias_add(tf.matmul(output, weight_variable([input_size, output_size])), bias_variable([output_size], bias_init_contant))
-    output = batch_normalization(output, [output_size])
-    return output
+    with tf.variable_scope('fc'):
+        output = tf.reshape(input, [-1, input_size], name='reshape')
+        output = tf.nn.bias_add(tf.matmul(output, weight_variable([input_size, output_size])), bias_variable([output_size], bias_init_contant))
+        output = batch_normalization(output, [output_size])
+        return output
 
 
 def maxpool(input, ksize, stride=1, padding='SAME'):
@@ -49,18 +52,19 @@ def avgpool(input, ksize, stride=1, padding='VALID'):
 
 
 def inception(input, input_size, output_1, reduce_3, output_3, reduce_5, output_5, output_pool):
-    branch_0 = conv2d(input, [1, 1, input_size, output_1])
+    with tf.variable_scope('inception'):
+        branch_0 = conv2d(input, [1, 1, input_size, output_1])
 
-    branch_1 = conv2d(input, [1, 1, input_size, reduce_3])
-    branch_1 = conv2d(branch_1, [3, 3, reduce_3, output_3])
+        branch_1 = conv2d(input, [1, 1, input_size, reduce_3])
+        branch_1 = conv2d(branch_1, [3, 3, reduce_3, output_3])
 
-    branch_2 = conv2d(input, [1, 1, input_size, reduce_5])
-    branch_2 = conv2d(branch_2, [5, 5, reduce_5, output_5])
-    
-    branch_3 = maxpool(input, ksize=3)
-    branch_3 = conv2d(branch_3, [1, 1, input_size, output_pool])
+        branch_2 = conv2d(input, [1, 1, input_size, reduce_5])
+        branch_2 = conv2d(branch_2, [5, 5, reduce_5, output_5])
+        
+        branch_3 = maxpool(input, ksize=3)
+        branch_3 = conv2d(branch_3, [1, 1, input_size, output_pool])
 
-    return tf.concat([branch_0, branch_1, branch_2, branch_3], 3)
+        return tf.concat([branch_0, branch_1, branch_2, branch_3], 3)
 
 
 def build_googlenet(input):
@@ -80,25 +84,27 @@ def build_googlenet(input):
 
     output = inception(output, 480, 192, 96, 208, 16, 48, 64)
     
-    softmax0 = avgpool(output, ksize=5, stride=3)
-    softmax0 = conv2d(softmax0, [1, 1, 512, 128])
-    softmax0 = fc(softmax0, 4 * 4 * 128, 1024)
-    softmax0 = tf.nn.relu(softmax0)
-    softmax0 = tf.nn.dropout(softmax0, keep_prob=0.7)
-    softmax0 = fc(softmax0, 1024, 12, bias_init_contant=0.0)
-#    softmax0 = tf.nn.softmax(softmax0)
+    with tf.variable_scope('softmax0'):
+        softmax0 = avgpool(output, ksize=5, stride=3)
+        softmax0 = conv2d(softmax0, [1, 1, 512, 128])
+        softmax0 = fc(softmax0, 4 * 4 * 128, 1024)
+        softmax0 = tf.nn.relu(softmax0)
+        softmax0 = tf.nn.dropout(softmax0, keep_prob=0.7)
+        softmax0 = fc(softmax0, 1024, 12, bias_init_contant=0.0)
+#       softmax0 = tf.nn.softmax(softmax0)
 
     output = inception(output, 512, 160, 112, 224, 24, 64, 64)
     output = inception(output, 512, 128, 128, 256, 24, 64, 64)
     output = inception(output, 512, 112, 144, 288, 32, 64, 64)
-    
-    softmax1 = avgpool(output, ksize=5, stride=3)
-    softmax1 = conv2d(softmax1, [1, 1, 528, 128])
-    softmax1 = fc(softmax1, 4 * 4 * 128, 1024)
-    softmax1 = tf.nn.relu(softmax1)
-    softmax1 = tf.nn.dropout(softmax1, keep_prob=0.7)
-    softmax1 = fc(softmax1, 1024, 12, bias_init_contant=0.0)
-#    softmax1 = tf.nn.softmax(softmax1)
+
+    with tf.variable_scope('softmax1'):
+        softmax1 = avgpool(output, ksize=5, stride=3)
+        softmax1 = conv2d(softmax1, [1, 1, 528, 128])
+        softmax1 = fc(softmax1, 4 * 4 * 128, 1024)
+        softmax1 = tf.nn.relu(softmax1)
+        softmax1 = tf.nn.dropout(softmax1, keep_prob=0.7)
+        softmax1 = fc(softmax1, 1024, 12, bias_init_contant=0.0)
+#       softmax1 = tf.nn.softmax(softmax1)
 
     output = inception(output, 528, 256, 160, 320, 32, 128, 128)
     
@@ -107,10 +113,11 @@ def build_googlenet(input):
     output = inception(output, 832, 256, 160, 320, 32, 128, 128)
     output = inception(output, 832, 384, 192, 384, 48, 128, 128)
 
-    softmax2 = avgpool(output, ksize=7)
-    softmax2 = tf.nn.dropout(softmax2, keep_prob=0.4)
-    softmax2 = fc(softmax2, 1 * 1 * 1024, 12, bias_init_contant=0.0)
-#    softmax2 = tf.nn.softmax(softmax2)
+    with tf.variable_scope('softmax2'):
+        softmax2 = avgpool(output, ksize=7)
+        softmax2 = tf.nn.dropout(softmax2, keep_prob=0.4)
+        softmax2 = fc(softmax2, 1 * 1 * 1024, 12, bias_init_contant=0.0)
+#       softmax2 = tf.nn.softmax(softmax2)
 
     return softmax0, softmax1, softmax2
 
