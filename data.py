@@ -16,12 +16,8 @@ def extract_file(path):
 def extract_data():
 	if not os.path.isfile('train.zip'):
 		raise FileNotFoundError('train.zip')
-	if not os.path.isfile('test.zip'):
-		raise FileNotFoundError('test.zip')
 	if not os.path.isdir('train'):
 		extract_file('train.zip')
-	if not os.path.isdir('test'):
-		extract_file('test.zip')
 
 
 def shuffle_list(x):

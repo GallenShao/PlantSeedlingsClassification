@@ -45,6 +45,7 @@ def get_outputs(networks, args):
 if __name__ == '__main__':
 	parser = argparse.ArgumentParser(description="main script for testing")
 	parser.add_argument('--network', '-n', required=True, help='select network', choices=['alexnet', 'googlenet', 'shaonet', 'all'])
+	parser.add_argument('--policy', '-p', help='select policy when network is all', choices=['1','2'], default='1')
 	args = parser.parse_args()
 	
 	if args.network == 'alexnet':
@@ -60,9 +61,21 @@ if __name__ == '__main__':
 	
 	outputs, YCV = get_outputs(networks, args)
 	if len(outputs) > 1:
-		outputs = sum(outputs)
-		classification = outputs.argmax(axis = 1)
-		acc = sum(classification == YCV)
+		if args.policy == '1':
+			outputs = sum(outputs)
+			classification = outputs.argmax(axis = 1)
+			acc = sum(classification == YCV)
+		elif args.policy == '2':
+			classifications = []
+			for output in outputs:
+				classification = output.argmax(axis = 1)
+				classifications.append(classification)
+			res = []
+			for i in range(len(res[0])):
+				res.append(classifications[0][i] if classifications[0][i] == classifications[2][i] else classifications[1][i])
+			res = np.array(res)
+			acc = sum(res == YCV)
+
 		log.log("Final accuracy: %.2f%%" % (acc/len(YCV)*100))
 	
 	
