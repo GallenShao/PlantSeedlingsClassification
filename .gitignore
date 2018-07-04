@@ -4,5 +4,7 @@ train.zip
 test.zip
 *.png
 __pycache__/
-dumps/
+model/
+dumps_*/
+*_logs/
 .*

@@ -38,20 +38,20 @@ def shuffle_list_2(x, y):
 	return x[arr], y[arr]
 
 
-def get_all_images_in(category, need_filter):
+def get_all_images_in(category, need_filter, size = 224):
 	files = os.listdir('train/%s' % category)
 	images = []
 	for i, file in enumerate(files):
 		log.log("%-25s loading from file: %d%%" % (category, math.ceil((i+1)/len(files)*100)), end="\r")
 		path = 'train/%s/%s' % (category, file)
-		data = read_image(path, need_filter=need_filter)
-		if data.shape == (224,224,3):
+		data = read_image(path, need_filter=need_filter, size = size)
+		if data.shape == (size, size, 3):
 			images.append(data)
 	print()
 	return images
 
 
-def load_data(split=(0.8, 0.2, 0), shuffle=True, need_filter=False, fast_load=True):
+def load_data(split=(0.8, 0.2, 0), shuffle=True, need_filter=False, fast_load=True, size = 224):
 	extract_data()
 	categories = os.listdir('train')
 	
@@ -69,20 +69,20 @@ def load_data(split=(0.8, 0.2, 0), shuffle=True, need_filter=False, fast_load=Tr
 	test_y = []
 	for index, category in enumerate(categories):
 		if fast_load:
-			file = 'dumps/%s.dump' % category
+			file = 'dumps_%d/%s.dump' % (size, category)
 			if os.path.isfile(file):
 				log.log('%-25s loading from dump...' % category, end='\r')
 				images = pickle.load(open(file, 'rb'))
 				log.log('%-25s loading from dump...[Done],' % category)
 			else:
-				if not os.path.isdir('dumps'):
-					os.mkdir('dumps')
-				images = get_all_images_in(category, need_filter=need_filter)
+				if not os.path.isdir(file.split('/')[0]):
+					os.mkdir(file.split('/')[0])
+				images = get_all_images_in(category, need_filter=need_filter, size = size)
 				log.log('%-25s saving dumps...' % category, end='\r')
 				pickle.dump(images, open(file, 'wb'))
 				log.log('%-25s saving dumps...[Done]' % category)
 		else:
-			images = get_all_images_in(category, need_filter=need_filter)
+			images = get_all_images_in(category, need_filter=need_filter, size = size)
 
 		if shuffle:
 			images = shuffle_list(images)
@@ -108,10 +108,10 @@ def load_data(split=(0.8, 0.2, 0), shuffle=True, need_filter=False, fast_load=Tr
 	return train_x, train_y, validation_x, validation_y, test_x, test_y, categories
 
 
-def read_image(path, size=[224, 224, 3], need_filter=False):
+def read_image(path, size=224, need_filter=False):
 	if type(path) is str:
 		data = scipy.ndimage.imread(path)
-		data = scipy.misc.imresize(data, size)/255
+		data = scipy.misc.imresize(data, (size, size, 3))/255
 		if need_filter:
 			filter_image(data)
 		return data
@@ -134,12 +134,6 @@ def next_batch(x, y, batch_size):
 		batch_y = yy[index * batch_size: (index + 1) * batch_size]
 		yield batch_x, batch_y
 
-
-def preview_image(path, id):
-	image = read_image(path)
-	scipy.misc.imsave('%d_original.png' % id, image)
-	filter_image(image)
-	scipy.misc.imsave('%d_preview.png' % id, image)
 
 
 if __name__ == '__main__':

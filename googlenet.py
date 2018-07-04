@@ -141,8 +141,9 @@ def build_net():
 
     optimizer = tf.train.AdamOptimizer(learning_rate).minimize(loss)
     
-    prediction = tf.equal(tf.argmax(tf.nn.softmax(softmax2), 1), tf.argmax(transfer_y, 1))
+    output = tf.nn.softmax(softmax2)
+    prediction = tf.equal(tf.argmax(output, 1), tf.argmax(transfer_y, 1))
     accuracy = tf.reduce_mean(tf.cast(prediction, tf.float32))
     log.log('building googlenet...[Done]')
-    return input_x, input_y, keep_prob, loss, optimizer, accuracy
+    return input_x, input_y, keep_prob, loss, optimizer, accuracy, output
 
