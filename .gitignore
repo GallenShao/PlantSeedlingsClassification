@@ -1,7 +1,5 @@
 train/
-test/
-train.zip
-test.zip
+*.zip
 *.png
 __pycache__/
 model/
